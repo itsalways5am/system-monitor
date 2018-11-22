@@ -2,7 +2,7 @@
 # networkIntClean.py for systemMon.py
 # purpose: to parse with machineID gen from machineTagger
 # authors: luckyducky, lh, calebpitts
-# updated: 2018-11-19
+# updated: 2018-11-23
 #############################################################
 import pandas as pd
 import csv
