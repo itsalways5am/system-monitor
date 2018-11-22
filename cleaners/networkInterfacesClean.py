@@ -59,7 +59,8 @@ broadcastIPv4 = 0
 broadcastIPv6 = 0
 p2pIPv4 = 0
 p2pIPv6 = 0
-
+ipv4 = 0
+ipv6 = 0
 #this logic and area may be a good place to manage missing data with certain fields (columns)
 log_count = 0   # For holding number of logs
 timestampFix = 0
@@ -123,29 +124,42 @@ with open('networkInterfaces.log') as f:
             outgoingDrops.append(line)
 
         elif line.startswith('<IPv4>') == True:
+            ipv4 = 1
             IPv4.append(line)
-
-        elif line.startswith('<IPv4_netmask>') == True:
-            IPv4_netmask.append(line)
 
         elif line.startswith('<IPv4_netmask>') == True:
             netmaskIPv4 = 1
             IPv4_netmask.append(line)
 
         elif line.startswith('<IPv6>') == True:
+            ipv6 = 1
             IPv6.append(line)
 
         elif line.startswith('<IPv6_netmask>') == True:
+            netmaskIPv6 = 1
             IPv6_netmask.append(line)
 
         elif line.startswith('<IPv4_broadcast>') == True:
             broadcastIPv4 = 1
             IPv4_broadcast.append(line)
 
+        elif line.startswith('<IPv6_broadcast>') == True:
+            broadcastIPv6 = 1
+            IPv6_broadcast.append(line)
+
         elif line.startswith('<IPv4_p2p>') == True:
+            p2pIPv4 = 1
+            IPv4_p2p.append(line)
+
+        elif line.startswith('<IPv6_p2p>') == True:
+            p2pIPv6 = 1
             IPv4_p2p.append(line)
 
         if line.startswith('</log>') == True:
+            if ipv4 == 0:
+                IPv4.append('')
+            if ipv6 == 0:
+                IPv6.append('')
             if netmaskIPv4 == 0:
                 IPv4_netmask.append('')
             if broadcastIPv4 == 0:
