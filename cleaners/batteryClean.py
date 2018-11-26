@@ -1,97 +1,137 @@
 ###############################################################
-## batteryclean.py for systemMon.py
-## last updated 21.11.2018  12:11
-## purpose : cleaner update with day of week extraction
-## authors: luckyducky + lamehacker
+## batteryclean.py
+## last updated 23.11.2018 
+## purpose : battery cleaner module for log parser module
+## authors: luckyducky + lamehacker + calebpitts
 ################################################################
 
 import csv
+import gc
+import os
 import re
-import pandas as pd
 from datetime import datetime
+from openpyxl import load_workbook
 
-
-#function to define structure of logID
-def format_logId():
-    if log_count <= 9 and log_count >= 0:
-        placeholder = '000'
-    elif log_count <= 99 and log_count >= 10:
-        placeholder = '00'
-    elif log_count > 99:
-        placeholder = '0'
-    a = (captureTime[1])
-    date = a[13:23]
-    uniqueLogId.append(machineID + str(date) + '[' + placeholder + str(log_count) + ']')
-
-def day():
-    s = df[1]
-    s2 = s[1:]
-    df[1] = pd.to_datetime(s2)
-    df['day'] = df[1].dt.dayofweek
-    df.iloc[0, 1] = "timeStamp"
-    df.iloc[0, 8] = "dayofweek"
-
+import pandas as pd
 
 # for holding purposes manually entering machine ID from preferences (needs to be entered as a string)
-machineID = '327d87e2c8870aed161afea1ef803dc4'
-captureTime = ['timeStamp']
-supported = ['supported']
-detected = ['detected']
-charge = ['charge']
-remaining = ['remaining']
-status = ['status']
-plugged = ['plugged']
-uniqueLogId = ['LogID']
+LogID = []
+captureTime = []
+supported = []
+detected = []
+charge = []
+remaining = []
+status = []
+plugged = []
 
-i = 10
-log_count = 0
-# using with open (not f=open) for error reduction. with open also automatically closes file
-with open('battery.log') as f:
-    for line in f:
-        # passes '<log>' #the lines below within if and elif i==int pull into lists based on string of tags
-        # if you examine battery.log you will see that the row number i == int -> string.append is matched with above defined variables
-        if str(line).startswith('<log>') == True:
-            i = 1
-            continue
-        if str(line).startswith('</log>') == True:
-            log_count += 1
-            format_logId()
-            i = 8
-            continue
-        if i == 1:
-            captureTime.append(line)
-        elif i == 2:
-            supported.append(line)
-        elif i == 3:
-            detected.append(line)
-        elif i == 4:
-            charge.append(line)
-        elif i == 5:
-            remaining.append(line)
-        elif i == 6:
-            status.append(line)
-        elif i == 7:
-            plugged.append(line)
-        i += 1
+def addHeaders():
+    global LogID, captureTime, supported
+    global detected, charge, remaining
+    global status, plugged
 
-# creates dataframe using list(zip('name of lists to be zipped into dataFrame'))
-df = pd.DataFrame(list(zip(uniqueLogId, captureTime, supported, detected, charge, remaining, status, plugged)))
+    LogID.append('Log ID')
+    captureTime.append('Log time')
+    supported.append('Battery supported')
+    detected.append('Battery detected')
+    charge.append('Current charge')
+    remaining.append('Battery reamining for')
+    status.append('Charging status')
+    plugged.append('Plugged in')
 
-# defining items for regex to remove from dataframe
-stuffToIgnore = ['<captureTime>', '</captureTime>',
-                 '<supported>', '</supported>',
-                 '<detected>', '</detected>',
-                 '<charge>', '</charge>',
-                 '<status>', '</status>',
-                 '<plugged>', '</plugged>',
-                 '<remaining>', '</remaining>',
-                 '\n']
-# regex for replacing stuff with ""
-for stuff in stuffToIgnore:
-    df = df.replace(stuff, "", regex=True)
+def emptyLists():
+    global LogID, captureTime, supported
+    global detected, charge, remaining
+    global status, plugged
 
-day()
+    LogID[:] = []
+    captureTime[:] = []
+    supported[:] = []
+    detected[:] = []
+    charge[:] = []
+    remaining[:] = []
+    status[:] = []
+    plugged[:] = []
 
-df.to_csv('battery.csv', index=False, header=False)
+#function to define structure of logID
+def generateLogID(logCount, timeForLogID, machineID):
+    if logCount <= 9 and logCount >= 0:
+        placeholder = '000'
+    elif logCount <= 99 and logCount >= 10:
+        placeholder = '00'
+    elif logCount > 99:
+        placeholder = '0'
+    date = timeForLogID[13:23]
+    LogID.append(machineID + '_' + str(date) + '[' + placeholder + str(logCount) + ']')
 
-print(df)
+def initiator(dataDir, machineID, logPath):
+
+    i = 10
+    logCount = 0
+    
+    os.chdir(dataDir)
+    if os.path.exists('batteryLogs.xlsx') == False:
+        addHeaders()
+    else:
+        emptyLists()
+
+    os.chdir(logPath)
+    with open('battery.log') as batteryLog:
+        for line in batteryLog:
+
+            if line.startswith('<log>') == True:
+                i = 1
+                continue
+
+            if line.startswith('</log>') == True:
+                logCount += 1
+                generateLogID(logCount, timeForLogID, machineID)
+                i = 8
+                continue
+
+            if i == 1:
+                captureTime.append(line)
+                timeForLogID = line
+            elif i == 2:
+                supported.append(line)
+            elif i == 3:
+                detected.append(line)
+            elif i == 4:
+                charge.append(line)
+            elif i == 5:
+                remaining.append(line)
+            elif i == 6:
+                status.append(line)
+            elif i == 7:
+                plugged.append(line)
+            i += 1
+
+    # creates dataframe using list(zip('name of lists to be zipped into dataFrame'))
+    df = pd.DataFrame(list(zip(LogID, captureTime, supported, detected, charge, remaining, status, plugged)))
+
+    # defining items for regex to remove from dataframe
+    stuffToIgnore = ['<captureTime>', '</captureTime>',
+                    '<supported>', '</supported>',
+                    '<detected>', '</detected>',
+                    '<charge>', '</charge>',
+                    '<status>', '</status>',
+                    '<plugged>', '</plugged>',
+                    '<remaining>', '</remaining>',
+                    '\n']
+    
+    # regex for replacing stuff with ""
+    for stuff in stuffToIgnore:
+        df = df.replace(stuff, "", regex=True)
+
+    os.chdir(dataDir)
+
+    if os.path.exists('batteryLogs.xlsx') == True:
+        oldFile = load_workbook('batteryLogs.xlsx')
+        writer = pd.ExcelWriter('batteryLogs.xlsx', engine='openpyxl')
+        writer.book = oldFile
+        writer.sheets = {ws.title: ws for ws in oldFile.worksheets}
+        df.to_excel(writer,sheet_name='Battery logs', startrow=writer.sheets['Battery logs'].max_row, index = False,header= False)
+        writer.save()
+    else:
+        writer = pd.ExcelWriter('batteryLogs.xlsx')
+        df.to_excel(writer, sheet_name='Battery logs', index=False, header=False)
+        writer.save()
